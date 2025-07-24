@@ -87,7 +87,7 @@ export const Login = () => {
         return;
       }
 
-      if (data?.success) {
+      if (data?.success && data?.otp) {
         console.log('OTP sent successfully');
         setGeneratedOtp(data.otp); // Store the generated OTP for verification
         setShowOtp(true);
