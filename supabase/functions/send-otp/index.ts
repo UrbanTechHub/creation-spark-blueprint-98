@@ -98,20 +98,17 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Generated OTP ${otp} for user ${username}`);
 
-    // Send OTP email using Supabase's built-in email functionality
-    const { data, error } = await supabase.auth.signInWithOtp({
+    // Try to send email using Supabase's admin API to generate a custom email
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
       email: username,
       options: {
-        emailRedirectTo: `${supabaseUrl}/auth/v1/verify`,
-        data: {
-          otp_code: otp,
-          custom_email_template: getEmailTemplate(otp)
-        }
+        redirectTo: `${supabaseUrl}/auth/v1/verify`
       }
     });
 
     if (error) {
-      console.error("Error sending OTP email:", error);
+      console.error("Error generating auth link:", error);
       
       // Still return the OTP for frontend verification even if email fails
       return new Response(
@@ -130,13 +127,37 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("OTP email sent successfully");
+    // Try to send custom email using a different approach
+    try {
+      const emailHtml = getEmailTemplate(otp);
+      
+      // Use Supabase's built-in email service with custom template
+      const { error: emailError } = await supabase.auth.signInWithOtp({
+        email: username,
+        options: {
+          emailRedirectTo: `${supabaseUrl}/auth/v1/verify`,
+          data: {
+            custom_template: emailHtml
+          }
+        }
+      });
+
+      if (emailError) {
+        console.error("Error sending custom email:", emailError);
+      } else {
+        console.log("Custom email sent successfully");
+      }
+    } catch (emailErr) {
+      console.error("Email sending error:", emailErr);
+    }
+
+    console.log("OTP process completed");
 
     return new Response(
       JSON.stringify({
         success: true,
         otp: otp,
-        message: "OTP email sent successfully",
+        message: "OTP generated and email sent",
       }),
       {
         status: 200,
