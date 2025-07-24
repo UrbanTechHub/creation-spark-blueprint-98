@@ -98,14 +98,14 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Generated OTP ${otp} for user ${username}`);
 
-    // Send custom email using Supabase admin
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
+    // Send OTP email using Supabase's built-in email functionality
+    const { data, error } = await supabase.auth.signInWithOtp({
       email: username,
       options: {
+        emailRedirectTo: `${supabaseUrl}/auth/v1/verify`,
         data: {
-          otp: otp,
-          email_template: getEmailTemplate(otp)
+          otp_code: otp,
+          custom_email_template: getEmailTemplate(otp)
         }
       }
     });
