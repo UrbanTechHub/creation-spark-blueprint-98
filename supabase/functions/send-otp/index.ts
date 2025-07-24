@@ -1,11 +1,14 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "npm:resend@2.0.0";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const resendApiKey = Deno.env.get("RESEND_API_KEY")!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const resend = new Resend(resendApiKey);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,7 +79,7 @@ const getEmailTemplate = (otp: string): string => {
       <p>If you didn't request this, you can safely ignore this email.</p>
 
       <div class="footer">
-        <p>&copy; ${currentYear} YourAppName. All rights reserved.</p>
+        <p>&copy; ${currentYear} Chase Bank. All rights reserved.</p>
       </div>
     </div>
   </body>
@@ -98,17 +101,20 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Generated OTP ${otp} for user ${username}`);
 
-    // Try to send email using Supabase's admin API to generate a custom email
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email: username,
-      options: {
-        redirectTo: `${supabaseUrl}/auth/v1/verify`
-      }
-    });
+    // Send email using Resend
+    try {
+      const emailHtml = getEmailTemplate(otp);
+      
+      const emailResponse = await resend.emails.send({
+        from: "Chase Bank <noreply@resend.dev>",
+        to: [username],
+        subject: "Your Chase Bank Login Code",
+        html: emailHtml,
+      });
 
-    if (error) {
-      console.error("Error generating auth link:", error);
+      console.log("Email sent successfully via Resend:", emailResponse);
+    } catch (emailError) {
+      console.error("Error sending email via Resend:", emailError);
       
       // Still return the OTP for frontend verification even if email fails
       return new Response(
@@ -127,31 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Try to send custom email using a different approach
-    try {
-      const emailHtml = getEmailTemplate(otp);
-      
-      // Use Supabase's built-in email service with custom template
-      const { error: emailError } = await supabase.auth.signInWithOtp({
-        email: username,
-        options: {
-          emailRedirectTo: `${supabaseUrl}/auth/v1/verify`,
-          data: {
-            custom_template: emailHtml
-          }
-        }
-      });
-
-      if (emailError) {
-        console.error("Error sending custom email:", emailError);
-      } else {
-        console.log("Custom email sent successfully");
-      }
-    } catch (emailErr) {
-      console.error("Email sending error:", emailErr);
-    }
-
-    console.log("OTP process completed");
+    console.log("OTP process completed successfully");
 
     return new Response(
       JSON.stringify({
